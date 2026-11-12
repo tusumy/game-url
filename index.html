@@ -34,6 +34,7 @@ main{max-width:1110px;margin:auto;padding:21px 20px 54px}.topbar{display:flex;al
 <div class="footer">LANGUAGE PORTAL · 原创离线练习原型 · 无账号、无广告、无内置付费</div>
 </main>
 <script src="advanced.js"></script>
+<script src="voice.js"></script>
 <script>
 (function(){
 "use strict";
@@ -132,7 +133,7 @@ function chapterOf(step){return step<6?0:step<12?1:2;}
 function renderChapters(){var p=record(state.active),wrap=id("chapterNav");wrap.replaceChildren();if(MAX<18)return;CHAPTERS.forEach(function(ch,i){var b=document.createElement("button");b.className="chapter-btn"+(chapterOf(p.step>=MAX?MAX-1:p.step)===i?" selected":"");b.type="button";b.textContent=ch.name;var d=document.createElement("em");d.textContent=ch.detail+" · "+p.passed.filter(function(n){return n>=ch.start&&n<ch.start+6;}).length+"/6";b.appendChild(d);b.onclick=function(){p.step=ch.start;save();renderGame();};wrap.appendChild(b);});}
 function page(which){id("hub").classList.toggle("hidden",which!=="hub");id("game").classList.toggle("hidden",which!=="game");if(which==="hub"){renderHub();}window.scrollTo({top:0,behavior:"smooth"});}
 function renderHub(){updateTop();var wrap=id("portalGrid");wrap.replaceChildren();langs.forEach(function(l){var p=record(l.id),n=p.passed.length;var b=document.createElement("button");b.className="language";b.type="button";b.innerHTML='<span class="glyph"></span><span class="name"></span><span class="sub"></span><span class="status"></span><div class="track"><div class="fill"></div></div>';b.querySelector(".glyph").textContent=l.flag;b.querySelector(".name").textContent=l.name;b.querySelector(".sub").textContent=l.native+" · "+l.locale;b.querySelector(".status").textContent=n===MAX?"✓ 已通关":n===0?"进入新世界 →":"继续冒险 · "+n+"/"+MAX;b.querySelector(".fill").style.width=(n/MAX*100)+"%";b.addEventListener("click",function(){state.active=l.id;save();renderGame();page("game");});wrap.appendChild(b);});}
-function speak(text,locale){if(!("speechSynthesis" in window)){displayError("当前浏览器不支持语音朗读。");return;}try{window.speechSynthesis.cancel();var u=new SpeechSynthesisUtterance(text);u.lang=locale;u.rate=.82;u.pitch=1;var voices=window.speechSynthesis.getVoices();var v=voices.find(function(v){return v.lang.toLowerCase()===locale.toLowerCase();})||voices.find(function(v){return v.lang.toLowerCase().split("-")[0]===locale.split("-")[0];});if(v)u.voice=v;window.speechSynthesis.speak(u);}catch(e){displayError("系统语音朗读失败，请检查设备的语言语音包。");}}
+function speak(text,locale){if(window.PortalVoice&&window.PortalVoice.speak)return window.PortalVoice.speak(text,locale);if(!("speechSynthesis" in window)){displayError("当前浏览器不支持语音朗读。");return;}try{window.speechSynthesis.cancel();var u=new SpeechSynthesisUtterance(text);u.lang=locale;u.rate=.82;u.pitch=1;var voices=window.speechSynthesis.getVoices();var v=voices.find(function(v){return v.lang.toLowerCase()===locale.toLowerCase();})||voices.find(function(v){return v.lang.toLowerCase().split("-")[0]===locale.split("-")[0];});if(v)u.voice=v;window.speechSynthesis.speak(u);}catch(e){displayError("系统语音朗读失败，请检查设备的语言语音包。");}}
 var recognizing=false;
 function displayError(msg){id("feedback").textContent=msg;id("feedback").className="feedback error";}
 
@@ -144,7 +145,7 @@ id("progressName").textContent=done?"旅程结算":CHAPTERS[stage].name;
 id("progressText").textContent=p.passed.length+" / "+MAX;id("progressFill").style.width=(p.passed.length/MAX*100)+"%";renderChapters();
 id("exercise").classList.toggle("hidden",done);id("ending").classList.toggle("hidden",!done);
 if(done){id("endText").textContent="你完成了 "+l.name+" 世界的最终考验！目前解锁 "+p.passed.length+"/"+MAX+" 关。其他章节随时可以返回补完。";
-id("sceneTitle").textContent="归途已开启";id("sceneSub").textContent="现实世界 · 最终传送门";id("sceneTag").textContent="MISSION COMPLETE";id("worldIcon").textContent="🏆";id("systemNotice").textContent="最后一道封印已经解除。经验值与词库已保存。";return;}
+id("sceneTitle").textContent="归途已开启";id("sceneSub").textContent="现实世界 · 最终传送门";id("sceneTag").textContent="MISSION COMPLETE";id("worldIcon").textContent="🏆";id("systemNotice").textContent="最后一道封印已经解除。经验值与词库已保存。";if(window.PortalNPC)window.PortalNPC.onSceneChange();return;}
 var scene=settings[step],lesson=lessons[l.id][step];
 answered=p.passed.indexOf(step)>=0;showHint=false;wrongCount=0;penalty=0;revealedChoices=false;revealedLine=false;
 id("sceneTag").textContent="QUEST "+String(step+1).padStart(2,"0")+" · "+l.native.toUpperCase();
@@ -163,6 +164,8 @@ id("rescueButton").classList.toggle("hidden",stage===0||answered);id("rescueButt
 var arr=[lesson[2],lesson[3]];arr.splice(step%3,0,lesson[1]);var box=id("answers");box.replaceChildren();box.classList.toggle("hidden",stage!==0&&!answered);
 arr.forEach(function(t,i){var b=document.createElement("button");b.className="answer";b.type="button";var letter=document.createElement("span");letter.className="letter";letter.textContent="ABC"[i];var lab=document.createElement("span");lab.textContent=t;b.append(letter,lab);b.disabled=answered;b.addEventListener("click",function(){check(t,b);});box.appendChild(b);});
 if(answered){id("npcLine").textContent=lesson[0];id("answers").classList.remove("hidden");showWin(lesson,false);}
+if(window.PortalNPC)window.PortalNPC.onSceneChange();
+if(window.PortalVoice&&window.PortalVoice.refresh)window.PortalVoice.refresh();
 }
 function showWin(lesson,doSpeak){
 var p=record(state.active),step=p.step,score=p.scores[step];
@@ -193,8 +196,23 @@ id("mic").onclick=function(){var Recognition=window.SpeechRecognition||window.we
 id("next").onclick=function(){var p=record(state.active);if(p.step<MAX&&p.passed.indexOf(p.step)>=0){p.step++;save();renderGame();window.scrollTo({top:0,behavior:"smooth"});}};
 id("toBook").onclick=function(){page("hub");switchTab(true);};
 id("restart").onclick=function(){if(!confirm("确定清除 "+currentLang().name+" 的全部章节进度吗？其他语言不受影响。"))return;state.progress[state.active]={step:0,passed:[],scores:{}};save();renderGame();};
+window.PORTAL_GAME={
+getContext:function(){
+ var l=currentLang(),p=record(l.id),n=Math.min(p.step,MAX-1);
+ return {lang:{id:l.id,name:l.name,native:l.native,locale:l.locale},step:p.step,scene:settings[n],lesson:lessons[l.id][n],stage:chapterOf(n),done:p.step>=MAX};
+},
+completeDialogue:function(){
+ var l=currentLang(),p=record(l.id),n=p.step;
+ if(n>=MAX||p.passed.indexOf(n)!==-1)return false;
+ p.passed.push(n);
+ p.scores[n]=n<6?20:n<12?35:55;
+ save();answered=true;showWin(lessons[l.id][n],false);updateTop();renderChapters();
+ return true;
+}
+};
 renderHub();
 })();
 </script>
+<script src="npc-chat.js"></script>
 </body>
 </html>
